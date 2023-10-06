@@ -3,7 +3,7 @@ set -xeu
 
 function restart_apici ()
 {
-	local -a APICIS=( apici_build01 apici_build02 )
+	local -a APICIS=( apici_build01 )
 
 	for APICI in ${APICIS[@]}
 	do
@@ -81,16 +81,6 @@ then
 	echo "ERROR: LOGIN_TOKEN_B01 environment variable must have a value!"
 	exit 1
 fi
-if [[ ! -v LOGIN_TOKEN_B02 ]]
-then
-	echo "ERROR: LOGIN_TOKEN_B02 environment variable must be set!"
-	exit 1
-fi
-if [[ -z "${LOGIN_TOKEN_B02}" ]]
-then
-	echo "ERROR: LOGIN_TOKEN_B02 environment variable must have a value!"
-	exit 1
-fi
 
 declare -a PROGRAMS=( git oc jq )
 for PROGRAM in ${PROGRAMS[@]}
@@ -156,19 +146,12 @@ then
 	exit 1
 fi
 
-TOKEN_B02=$(get_token ${LOGIN_TOKEN_B02} "https://api.build02.gcp.ci.openshift.org:6443")
-RC=$?
-if [ ${RC} -gt 0 ]
-then
-	exit 1
-fi
 
 declare -a LIBVIRT_FILES
 declare -a LIBVIRT_FILES_OLD_SHA
 
 LIBVIRT_FILES=(
 "libvirt/tunnel/apici_build01.service"
-"libvirt/tunnel/apici_build02.service"
 "libvirt/tunnel/tunnel.sh"
 )
 
@@ -206,29 +189,8 @@ then
 	BRANCH="master"
 fi
 
-git reset --hard HEAD
-git clean -fxd .
-git checkout ${BRANCH}
-git fetch
-git checkout -m origin/${BRANCH} install-ci.sh
-
-NEW_INSTALL_CI_SHA1SUM=$(my_sha ${SCRIPT_DIR}/install-ci.sh)
-RC=$?
-if [ ${RC} -gt 0 ]
-then
-	exit 1
-fi
-
-if [[ "${OLD_INSTALL_CI_SHA1SUM}" != "${NEW_INSTALL_CI_SHA1SUM}" ]]
-then
-	echo "ERROR: install-ci.sh has changed upstream, rerun to reload the script!"
-	exit 1
-fi
-
-git pull
 
 sed -i -e 's,TOKEN=__,TOKEN='${TOKEN_B01}',' libvirt/tunnel/apici_build01.service
-sed -i -e 's,TOKEN=__,TOKEN='${TOKEN_B02}',' libvirt/tunnel/apici_build02.service
 
 declare -a LIBVIRT_FILES_NEW_SHA
 
